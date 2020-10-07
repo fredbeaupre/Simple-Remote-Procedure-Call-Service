@@ -15,16 +15,29 @@
 int rval;
 pid_t childpid;
 
+/**
+ * Simple add function
+ * Returns an int
+ */
 int add(int x, int y)
 {
     return x + y;
 }
 
+/**
+ * Simple multiply function
+ * Returns an int
+ */
 int multiply(int x, int y)
 {
     return x * y;
 }
 
+/**
+ * Simple divide function
+ * Check for division by zero before computing
+ * Returns a float
+ */
 float divide(float x, float y)
 {
     if (y == 0.00)
@@ -38,6 +51,10 @@ float divide(float x, float y)
     }
 }
 
+/**
+ * Function to compute factorial of an integer
+ * Note it returns a uint64_t so as to handle up to factorial 20 (20!)
+ */
 uint64_t factorial(int x)
 {
     uint64_t aux = 1;
@@ -49,8 +66,15 @@ uint64_t factorial(int x)
     return aux;
 }
 
+/**
+ * Function to compute the result from interpreting the client's input
+ * Also prepares the return message
+ * Return the message to be send back to client
+ */
 char *compute_result(Message *msg, char *server_msg)
 {
+    // Message has command, arg1 and arg2 as char arrays
+    // so we start by convert arg1 and arg2 to integers
     int arg1 = atoi(msg->arg1);
     int arg2 = atoi(msg->arg2);
 
@@ -69,7 +93,7 @@ char *compute_result(Message *msg, char *server_msg)
     // if input command is "divide"
     else if (strcmp(msg->cmd, "divide") == 0)
     {
-        // Check for division by zero before doing anything
+        // Check for division by zero before doing anything with the message
         if (arg2 == 0)
         {
             sprintf(server_msg, "%s", "Error: Divison by zero.");
@@ -98,7 +122,7 @@ char *compute_result(Message *msg, char *server_msg)
     else
     {
         // strip the message from its newline terminating character
-        // necessary to handle case where user inputs an invalid command with
+        // which is necessary to handle case where user inputs an invalid command with
         // no additional arguments
         char *stripped_msg = strtok(msg->cmd, "\n");
         sprintf(server_msg, "%s %s%s%s %s", "Error: Command", "'", stripped_msg, "'", "not found.");
@@ -108,23 +132,28 @@ char *compute_result(Message *msg, char *server_msg)
 
 int main(int argc, char *argv[])
 {
+
     int sockfd, clientfd;
 
-    int newSocket;
-    char msg[BUFSIZE];
-    char server_msg[BUFSIZE];
-    char temp_msg[BUFSIZE];
+    int newSocket;            // will hold new connections
+    char msg[BUFSIZE];        // char array to store 'raw' received message
+    char server_msg[BUFSIZE]; // message to be sent back
 
+    // create the server, check for error
     if (create_server(argv[1], atoi(argv[2]), &sockfd) < 0)
     {
-        fprintf(stderr, "error\n");
+        fprintf(stderr, "Error when trying to create the server\n");
         return -1;
     }
-    printf("\nServer listening on 127.0.0.1:1234\n\n");
+    // Print message when server created successfully
+    printf("\nServer listening on %s:%s\n\n", argv[1], argv[2]);
 
+    // listen for incoming connection requests
     while (1)
     {
 
+        // store file descriptor associated with socket into newSocket
+        // check if connection was successful
         newSocket = accept_connection(sockfd, &clientfd);
         if (newSocket < 0)
         {
@@ -132,11 +161,13 @@ int main(int argc, char *argv[])
             return -1;
         }
 
+        // print message for successful connection
         printf("Connection accepted from client with id %d\n", clientfd);
 
+        // create a child process to handle the client
         if ((childpid = fork()) == 0)
         {
-            close(sockfd);
+            //receive message
             while (1)
             {
                 memset(msg, 0, sizeof(msg));
@@ -146,6 +177,7 @@ int main(int argc, char *argv[])
                     exit(1);
                 }
 
+                // from char * to message *
                 Message *message = (Message *)msg;
                 if (strcmp(message->cmd, "shutdown\n") != 0 && strcmp(message->cmd, "quit\n") != 0 && strcmp(message->cmd, "exit\n") != 0)
                 {
@@ -160,11 +192,12 @@ int main(int argc, char *argv[])
                 }
                 else
                 {
-                    printf("HERE");
                     sprintf(server_msg, "%s", "Shutting down server");
                     exit(3);
                 }
 
+                // after receieved message is processed and return message is created,
+                // send return message back to client
                 send_message(clientfd, server_msg, sizeof(server_msg));
             }
         }
