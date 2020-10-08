@@ -11,9 +11,7 @@
 
 #define BUFSIZE 1024
 #define EXIT_FAILURE 1
-
-int rval;
-pid_t childpid;
+#define MAX_CLIENTS 10
 
 /**
  * Simple add function
@@ -132,9 +130,10 @@ char *compute_result(Message *msg, char *server_msg)
 
 int main(int argc, char *argv[])
 {
-
+    pid_t pid_array[MAX_CLIENTS]; // will hold the processes identifiers (max of 10)
+    int rvals[MAX_CLIENTS];
+    int client_counter = 0; // to keep track of the number of clients
     int sockfd, clientfd;
-
     int newSocket;            // will hold new connections
     char msg[BUFSIZE];        // char array to store 'raw' received message
     char server_msg[BUFSIZE]; // message to be sent back
@@ -151,22 +150,37 @@ int main(int argc, char *argv[])
     // listen for incoming connection requests
     while (1)
     {
-
         // store file descriptor associated with socket into newSocket
         // check if connection was successful
         newSocket = accept_connection(sockfd, &clientfd);
         if (newSocket < 0)
         {
-            fprintf(stderr, "oh no\n");
+            fprintf(stderr, "Error from the server in accepting the connection\n");
             return -1;
         }
-
-        // print message for successful connection
-        printf("Connection accepted from client with id %d\n", clientfd);
-
-        // create a child process to handle the client
-        if ((childpid = fork()) == 0)
+        else
         {
+            // print message for successful connection
+            printf("Connection accepted from client with id %d\n", clientfd);
+        }
+
+        // checks if any of the clients have terminated
+        for (int i = 0; i < MAX_CLIENTS; i++)
+        {
+            waitpid(pid_array[i], &rvals[client_counter], WNOHANG);
+            if (WEXITSTATUS(rvals[i]) == 3)
+            {
+                printf("Shutdown signal received.\n");
+                exit(0);
+            }
+        }
+
+        client_counter++;
+        // create a child process to handle the client
+        pid_array[client_counter] = fork();
+        if (pid_array[client_counter] == 0) // if true, we are in the child
+        {
+            close(sockfd);
             //receive message
             while (1)
             {
@@ -179,41 +193,28 @@ int main(int argc, char *argv[])
 
                 // from char * to message *
                 Message *message = (Message *)msg;
-                if (strcmp(message->cmd, "shutdown\n") != 0 && strcmp(message->cmd, "quit\n") != 0 && strcmp(message->cmd, "exit\n") != 0)
+                printf("Input command: %s\n", message->cmd); // for troubleshooting
+                if ((strcmp(message->cmd, "shutdown\n")) != 0 &&
+                    (strcmp(message->cmd, "quit\n") != 0) &&
+                    (strcmp(message->cmd, "exit\n") != 0))
                 {
                     strcpy(server_msg, compute_result(message, server_msg));
-                }
-                else if (strcmp(message->cmd, "exit\n") == 0)
-                {
-                    shutdown(clientfd, SHUT_RDWR);
-                    close(clientfd);
-                    close(sockfd);
-                    exit(0);
+                    // after receieved message is processed and return message is created,
+                    // send return message back to client
+                    send_message(clientfd, server_msg, sizeof(server_msg));
                 }
                 else
                 {
-                    sprintf(server_msg, "%s", "Shutting down server");
+                    sprintf(server_msg, "Shutting down...");
+                    send_message(clientfd, server_msg, sizeof(server_msg));
                     exit(3);
                 }
-
-                // after receieved message is processed and return message is created,
-                // send return message back to client
-                send_message(clientfd, server_msg, sizeof(server_msg));
             }
         }
         else
         {
-            waitpid(childpid, &rval, WNOHANG);
-            sleep(2);
-            if (WEXITSTATUS(rval) == 3)
-            {
-                close(sockfd);
-                exit(0);
-            }
+            waitpid(pid_array[client_counter], &rvals[client_counter], WNOHANG);
+            client_counter++;
         }
     }
-    close(newSocket);
-    exit(0);
-
-    return 0;
 }

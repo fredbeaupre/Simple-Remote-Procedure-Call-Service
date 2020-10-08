@@ -108,5 +108,5 @@ int main(int argc, char *argv[])
     // on quit, print goodbye message
     printf("Goodbye!\n");
 
-    return 0;
+    return 3;
 }
