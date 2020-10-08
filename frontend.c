@@ -82,12 +82,12 @@ int main(int argc, char *argv[])
         char *userInput = readLine(); // read in user input
         // compare against quit || exit,
         // in which case we shutdown the client and stop listening for input
-        if (strcmp(userInput, "quit\n") == 0 || strcmp(userInput, "shutdown\n") == 0)
+        if (strcmp(userInput, "quit\n") == 0 || strcmp(userInput, "exit\n") == 0)
         {
             shutdown(sockfd, SHUT_RDWR);
             break;
         }
-        // input is neither quit nor shutdown so:
+        // input is neither quit nor exit so:
         // convert input into a message
         Message message = parse_line(userInput);
         // convert message into a char pointer

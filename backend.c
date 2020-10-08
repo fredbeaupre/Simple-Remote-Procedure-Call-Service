@@ -11,7 +11,7 @@
 
 #define BUFSIZE 1024
 #define EXIT_FAILURE 1
-#define MAX_CLIENTS 10
+#define MAX_CLIENTS 20
 
 /**
  * Simple add function
@@ -194,9 +194,7 @@ int main(int argc, char *argv[])
                 // from char * to message *
                 Message *message = (Message *)msg;
                 printf("Input command: %s\n", message->cmd); // for troubleshooting
-                if ((strcmp(message->cmd, "shutdown\n")) != 0 &&
-                    (strcmp(message->cmd, "quit\n") != 0) &&
-                    (strcmp(message->cmd, "exit\n") != 0))
+                if ((strcmp(message->cmd, "shutdown\n")) != 0)
                 {
                     strcpy(server_msg, compute_result(message, server_msg));
                     // after receieved message is processed and return message is created,
